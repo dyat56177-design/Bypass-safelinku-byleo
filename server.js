@@ -1,22 +1,19 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
-
-// Serve static frontend files if served together
 app.use(express.static('.'));
-const path = require('path');
 
+// Tampilkan halaman utama (index.html)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-
-// Helper to decode base64 strings if they form a valid HTTP URL
+// Helper mendekode Base64
 function decodeBase64IfUrl(str) {
   try {
     const decoded = Buffer.from(str, 'base64').toString('utf-8');
@@ -29,21 +26,37 @@ function decodeBase64IfUrl(str) {
   return null;
 }
 
-// API endpoint to unshorten/bypass links
+// Endpoint utama unshorten/bypass
 app.post('/api/unshorten', async (req, res) => {
   const { url } = req.body;
 
   if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-    return res.status(400).json({ success: false, error: 'URL tidak valid. Masukkan URL lengkap dengan http:// atau https://' });
+    return res.status(400).json({ success: false, error: 'URL tidak valid.' });
   }
 
   try {
     let currentUrl = url;
     let redirectChain = [];
-    let maxSteps = 15; // Batas maksimum pengalihan untuk cegah infinite loop
 
-    while (maxSteps > 0) {
-      // 1. Periksa apakah URL mengandung parameter Base64 yang menyembunyikan link asli
+    // 1. Coba lewatkan ke API pemintas khusus (Support sfl.gl, safelinkku, adf.ly, dll)
+    try {
+      const bypassApiUrl = `https://unshorten.me/json/${encodeURIComponent(url)}`;
+      const apiRes = await fetch(bypassApiUrl);
+      const apiData = await apiRes.json();
+
+      if (apiData && apiData.success && apiData.resolved_url && apiData.resolved_url !== url) {
+        currentUrl = apiData.resolved_url;
+        redirectChain.push(`[Bypass Engine]: ${currentUrl}`);
+      }
+    } catch (e) {
+      // Jika API eksternal sibuk, lanjut ke pencarian manual
+    }
+
+    // 2. Jika belum ketemu link akhir (seperti MediaFire), pelacak manual berjalan
+    let maxSteps = 10;
+    while (maxSteps > 0 && !currentUrl.includes('mediafire.com') && !currentUrl.includes('drive.google.com') && !currentUrl.includes('mega.nz')) {
+      
+      // Cek parameter Base64 di URL
       try {
         const parsedUrl = new URL(currentUrl);
         for (const [_, val] of parsedUrl.searchParams.entries()) {
@@ -54,22 +67,17 @@ app.post('/api/unshorten', async (req, res) => {
             break;
           }
         }
-      } catch (e) {
-        // Abaikan error parsing URL
-      }
+      } catch (e) {}
 
-      // 2. Kirim HTTP GET Request tanpa otomatis mengikuti redirect (redirect: 'manual')
+      // Lakukan HTTP GET
       const response = await fetch(currentUrl, {
         method: 'GET',
         redirect: 'manual',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         }
       });
 
-      // 3. Periksa header Location (HTTP 301, 302, 303, 307, 308)
       const location = response.headers.get('location');
 
       if (location) {
@@ -77,32 +85,19 @@ app.post('/api/unshorten', async (req, res) => {
         redirectChain.push(currentUrl);
         maxSteps--;
       } else {
-        // 4. Jika tidak ada header Location, baca body HTML untuk mencari JS redirect atau Meta Refresh
         const html = await response.text();
+        
+        // Cari tautan MediaFire / Drive langsung dari dalam tag HTML/JS
+        const matchMediafire = html.match(/https?:\/\/(www\.)?mediafire\.com\/[^\s"']+/i);
+        const matchDrive = html.match(/https?:\/\/drive\.google\.com\/[^\s"']+/i);
+        const matchMega = html.match(/https?:\/\/mega\.nz\/[^\s"']+/i);
 
-        // Regex untuk mencari window.location / location.href / location.replace
-        const matchJs = html.match(/(?:window\.location(?:\.href)?|location\.href|location\.replace)\s*=\s*["']([^"']+)["']/i);
-        // Regex untuk meta refresh tag
-        const matchMeta = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"']+)["']/i);
+        const targetFound = matchMediafire?.[0] || matchDrive?.[0] || matchMega?.[0];
 
-        let foundUrl = matchJs?.[1] || matchMeta?.[1];
-
-        if (foundUrl) {
-          foundUrl = foundUrl.replace(/&amp;/g, '&');
-          
-          if (!foundUrl.startsWith('http')) {
-            foundUrl = new URL(foundUrl, currentUrl).href;
-          }
-
-          if (foundUrl !== currentUrl) {
-            currentUrl = foundUrl;
-            redirectChain.push(`[JS/Meta Redirect]: ${currentUrl}`);
-            maxSteps--;
-            continue;
-          }
+        if (targetFound) {
+          currentUrl = targetFound;
+          redirectChain.push(`[Target Extracted]: ${currentUrl}`);
         }
-
-        // Jalur pengalihan selesai
         break;
       }
     }
@@ -122,12 +117,7 @@ app.post('/api/unshorten', async (req, res) => {
   }
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Safelink Unshortener API is running' });
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server Safelink Unshortener berjalan di http://localhost:${PORT}`);
+  console.log(`Server berjalan di port ${PORT}`);
 });

@@ -1,0 +1,26 @@
+{
+  "name": "safelink-unshortener",
+  "version": "1.0.0",
+  "description": "Tools untuk bypass safelink dan shortener URL langsung ke tujuan akhir",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "safelink",
+    "unshorten",
+    "bypass",
+    "url-expander",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

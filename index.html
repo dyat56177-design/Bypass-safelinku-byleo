@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Safelink & URL Unshortener</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-between p-4 font-sans antialiased">
+
+  <main class="w-full max-w-2xl my-auto py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl mb-4 ring-1 ring-emerald-500/20">
+        <i class="fa-solid fa-bolt text-3xl"></i>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
+        Safelink <span class="text-emerald-400">Bypasser</span>
+      </h1>
+      <p class="text-slate-400 text-sm sm:text-base max-w-md mx-auto">
+        Dapatkan link tujuan asli secara langsung tanpa iklan, jebakan popup, atau countdown timer.
+      </p>
+    </div>
+
+    <!-- Input Card -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+      <div class="space-y-4">
+        <div>
+          <label for="linkInput" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+            Masukkan Link Shortener / Safelink
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <i class="fa-solid fa-link"></i>
+            </div>
+            <input 
+              type="url" 
+              id="linkInput" 
+              placeholder="https://sfl.gl/example..." 
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-24 py-3.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-200"
+            />
+            <button 
+              onclick="pasteAndBypass()" 
+              class="absolute right-2 top-2 bottom-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 flex items-center gap-1.5"
+            >
+              <i class="fa-regular fa-clipboard"></i> Tempel
+            </button>
+          </div>
+        </div>
+
+        <button 
+          onclick="bypassLink()" 
+          id="btnSubmit" 
+          class="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-emerald-900/30 transition duration-200 flex items-center justify-center gap-2 group"
+        >
+          <i class="fa-solid fa-arrow-right-to-bracket group-hover:translate-x-0.5 transition-transform"></i>
+          <span>Bypass Link Sekarang</span>
+        </button>
+      </div>
+
+      <!-- Alert Box -->
+      <div id="alertBox" class="hidden mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-3">
+        <i class="fa-solid fa-circle-exclamation text-base shrink-0 mt-0.5"></i>
+        <span id="alertText">Terjadi kesalahan</span>
+      </div>
+
+      <!-- Result Card -->
+      <div id="resultContainer" class="hidden mt-6 pt-6 border-t border-slate-800 space-y-5">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-check"></i> URL Tujuan Akhir
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono" id="statusBadge">SUCCESS</span>
+          </div>
+          
+          <div class="flex items-center gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+            <input 
+              type="text" 
+              id="finalUrl" 
+              readonly 
+              class="bg-transparent w-full text-emerald-300 font-mono text-sm px-2 focus:outline-none select-all"
+            />
+            <button 
+              onclick="copyToClipboard()" 
+              id="btnCopy" 
+              class="shrink-0 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium transition flex items-center gap-1.5"
+            >
+              <i class="fa-regular fa-copy"></i>
+              <span id="copyBtnText">Salin</span>
+            </button>
+            <a 
+              id="btnOpen" 
+              href="#" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="shrink-0 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium border border-slate-700 transition flex items-center gap-1.5"
+            >
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka
+            </a>
+          </div>
+        </div>
+
+        <!-- Logs / Redirect Chain -->
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-2">
+            <i class="fa-solid fa-route"></i> Jalur Pengalihan (Redirect Log)
+          </span>
+          <div id="logs" class="bg-slate-950 p-3.5 rounded-xl text-xs font-mono text-slate-400 space-y-1.5 max-h-44 overflow-y-auto border border-slate-800/80 divide-y divide-slate-800/40">
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center text-xs text-slate-500 py-4">
+    Open Source Safelink Bypasser Tool • Dibuat untuk keamanan dan kenyamanan browsing
+  </footer>
+
+  <script>
+    const API_BASE_URL = window.location.origin;
+
+    async function bypassLink() {
+      const linkInput = document.getElementById('linkInput');
+      const btnSubmit = document.getElementById('btnSubmit');
+      const resultContainer = document.getElementById('resultContainer');
+      const alertBox = document.getElementById('alertBox');
+      const alertText = document.getElementById('alertText');
+      const finalUrl = document.getElementById('finalUrl');
+      const btnOpen = document.getElementById('btnOpen');
+      const logs = document.getElementById('logs');
+
+      const url = linkInput.value.trim();
+
+      alertBox.classList.add('hidden');
+      resultContainer.classList.add('hidden');
+
+      if (!url) {
+        showAlert('Silakan masukkan link yang ingin di-bypass.');
+        return;
+      }
+
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        showAlert('URL harus diawali dengan http:// atau https://');
+        return;
+      }
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i><span>Mengekstrak URL...</span>`;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/unshorten`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          finalUrl.value = data.finalUrl;
+          btnOpen.href = data.finalUrl;
+
+          logs.innerHTML = '';
+          if (data.chain.length === 0) {
+            logs.innerHTML = `<div class="text-slate-500 italic">• Tidak ada pengalihan berantai (langsung ke tujuan).</div>`;
+          } else {
+            data.chain.forEach((item, idx) => {
+              logs.innerHTML += `
+                <div class="pt-1.5 first:pt-0 flex items-start gap-2 break-all">
+                  <span class="text-emerald-500 font-bold shrink-0">${idx + 1}.</span>
+                  <span>${escapeHtml(item)}</span>
+                </div>
+              `;
+            });
+          }
+
+          resultContainer.classList.remove('hidden');
+        } else {
+          showAlert(data.error || 'Gagal memproses link tersebut.');
+        }
+      } catch (err) {
+        showAlert('Gagal terhubung ke server. Pastikan server backend sedang berjalan.');
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = `<i class="fa-solid fa-arrow-right-to-bracket"></i><span>Bypass Link Sekarang</span>`;
+      }
+    }
+
+    async function pasteAndBypass() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          document.getElementById('linkInput').value = text;
+          bypassLink();
+        }
+      } catch (err) {
+        alert('Gagal membaca clipboard. Silakan tempelkan link secara manual.');
+      }
+    }
+
+    function copyToClipboard() {
+      const finalUrl = document.getElementById('finalUrl');
+      const copyBtnText = document.getElementById('copyBtnText');
+      
+      finalUrl.select();
+      navigator.clipboard.writeText(finalUrl.value);
+
+      copyBtnText.innerText = 'Tersalin!';
+      setTimeout(() => {
+        copyBtnText.innerText = 'Salin';
+      }, 2000);
+    }
+
+    function showAlert(msg) {
+      const alertBox = document.getElementById('alertBox');
+      const alertText = document.getElementById('alertText');
+      alertText.innerText = msg;
+      alertBox.classList.remove('hidden');
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    document.getElementById('linkInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') bypassLink();
+    });
+  </script>
+</body>
+</html>

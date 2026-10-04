@@ -9,6 +9,12 @@ app.use(express.json());
 
 // Serve static frontend files if served together
 app.use(express.static('.'));
+const path = require('path');
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 
 // Helper to decode base64 strings if they form a valid HTTP URL
 function decodeBase64IfUrl(str) {
